@@ -23,7 +23,16 @@ else:
 import bpy
 import logging
 
-logger = logging.getLogger("vmd_exporter")
+logger = logging.getLogger(const.ADDON_NAME)
+
+if not logger.handlers:
+    hdlr = logging.StreamHandler()
+    formatter = logging.Formatter("%(levelname)-7s %(asctime)s %(message)s (%(funcName)s)", datefmt="%H:%M:%S")
+    hdlr.setFormatter(formatter)
+    logger.addHandler(hdlr)
+    logger.setLevel(logging.DEBUG) # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+logger.debug("init logger") # debug, info, warning, error, critical
 
 def register():
     bpy.utils.register_module(__name__)

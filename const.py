@@ -1,4 +1,4 @@
-ADDON_NAME = "pmx_exporter"
-LOG_FILE_NAME = "pmx_exporter.log"
-NEW_ACTION_NAME = "Bone Morph"
+ADDON_NAME = "vmd_exporter"
+LOG_FILE_NAME = "vmd_exporter.log"
+META = "Vocaloid Motion Data 0002"
 
