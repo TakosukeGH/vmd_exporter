@@ -1,2 +1,3 @@
-# vmd_exporter
-VMD exporter
+# VMD Exporter
+
+VMD Exporter
