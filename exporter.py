@@ -28,6 +28,7 @@ class VmdExporter(bpy.types.Operator):
         self.timeline_markers = self.scene.timeline_markers
         self.obj = bpy.context.object
         self.arm = bpy.context.armature
+        self.pose = self.obj.pose
 
         self.export_bones = [self.pose.bones[bone.name] for bone in self.arm.bones if bone.vmd_bone_properties.export]
 
@@ -42,6 +43,12 @@ class VmdExporter(bpy.types.Operator):
         else:
             self.frame_size = self.frame_end - self.frame_start + 1
 
+        self.frame_offset = vmd_armature_properties.frame_offset
+        self.scale = vmd_armature_properties.scale
+
+        self.export_folder = bpy.path.abspath(vmd_armature_properties.export_folder)
+        self.file_name = vmd_armature_properties.file_name
+
         # TODO: 謎のプロパティ
         self.joint_opt = False
 
@@ -53,6 +60,7 @@ class VmdExporter(bpy.types.Operator):
     def export_vmd(self):
         if self.check_data() is False: return
         self.init_ipo_list()
+        self.init_path()
 
         with open(self.path, "wb") as file:
             self.write_str(file, 30, const.META)
@@ -75,6 +83,16 @@ class VmdExporter(bpy.types.Operator):
             logger.info("export frame size : " + str(self.frame_size))
             return False
 
+        if not self.export_folder:
+            logger.error("export folder does not exist.")
+            return False
+        logger.debug("export folder : " + self.export_folder)
+
+        if not self.file_name:
+            logger.error("file name does not exist.")
+            return False
+        logger.debug("file name : " + self.file_name)
+
         logger.info("end")
 
     def init_ipo_list(self):
@@ -92,6 +110,22 @@ class VmdExporter(bpy.types.Operator):
         self.ipo_list.extend([107] * 8)
         self.ipo_list.extend([0] * 3)
 
+    def init_path(self):
+        vmd_armature_properties = self.arm.vmd_armature_properties
+
+        if vmd_armature_properties.use_version:
+            major = vmd_armature_properties.version[0]
+            minor = vmd_armature_properties.version[1]
+            build = vmd_armature_properties.version[2]
+            version_map = {"major":major, "minor":minor, "build":build}
+
+            fromat = vmd_armature_properties.version_format
+
+            self.file_name += string.Template(fromat).safe_substitute(version_map)
+            logger.debug("file name : " + self.file_name)
+
+        self.path = os.path.join(self.export_folder, self.file_name) + ".pmx"
+
     def export_all_bone_data(self, file):
         logger.info("start")
 
@@ -99,9 +133,6 @@ class VmdExporter(bpy.types.Operator):
 
         # データ出力するボーンをリスト化
         export_bones_isolated = []
-
-        for bone_name in self.config_section_bone_isolated:
-            export_bones_isolated.append(self.BonePair(self.arm.bones[bone_name], self.arm.bones[self.config_section_bone_isolated[bone_name]]))
 
         for i in range(self.frame_start, self.frame_end + 1):
             if self.use_marker_mode:
@@ -123,14 +154,14 @@ class VmdExporter(bpy.types.Operator):
         location_mmd =  location_local - offset
         quaternion_mmd = (bone_child.matrix * bone_child.bone.matrix_local.inverted()).to_quaternion()
 
-        vmd_bone_properties = bone_child.vmd_bone_properties
+        vmd_bone_properties = bone_child.bone.vmd_bone_properties
         bone_parent = None
         if vmd_bone_properties.mmd_parent in self.arm.bones:
             bone_parent = self.arm.bones[vmd_bone_properties.mmd_parent]
         elif bone_child.parent is not None:
             bone_parent = bone_child.parent
 
-        if not bone_parent:
+        if bone_parent:
             location_local = (bone_parent.matrix.inverted() * bone_child.matrix).to_translation() * bone_parent.bone.matrix_local.inverted()
             offset = (bone_parent.bone.matrix_local.inverted() * bone_child.bone.matrix_local).to_translation() * bone_parent.bone.matrix_local.inverted()
             location_mmd =  location_local - offset
@@ -138,28 +169,11 @@ class VmdExporter(bpy.types.Operator):
             quaternion_parent = (bone_parent.matrix * bone_parent.bone.matrix_local.inverted()).to_quaternion()
             quaternion_mmd = quaternion_parent.rotation_difference(quaternion_mmd)
 
-        self.write_bone_data(file, bone_child.name, frame, location_mmd, quaternion_mmd)
+        self.write_bone_data(file, bone_child.bone, frame, location_mmd, quaternion_mmd)
 
-    def export_bone_data_isolated(self, file, frame, bone_pair):
-        bone_child = bone_pair.child
-        quaternion_mmd = (bone_child.matrix * bone_child.bone.matrix_local.inverted()).to_quaternion()
+    def write_bone_data(self, file, bone, frame, vector, quaternion):
 
-        # 以降はexport_bone_data()と同じ
-        bone_parent = bone_pair.parent
-
-        location_local = (bone_parent.matrix.inverted() * bone_child.matrix).to_translation() * bone_parent.bone.matrix_local.inverted()
-        offset = (bone_parent.bone.matrix_local.inverted() * bone_child.bone.matrix_local).to_translation() * bone_parent.bone.matrix_local.inverted()
-        location_mmd =  location_local - offset
-
-        quaternion_parent = (bone_parent.matrix * bone_parent.bone.matrix_local.inverted()).to_quaternion()
-        quaternion_mmd = quaternion_parent.rotation_difference(quaternion_mmd)
-
-        self.write_bone_data(file, bone_child.name, frame, location_mmd, quaternion_mmd)
-
-    def write_bone_data(self, file, name, frame, vector, quaternion):
-        self.print_log(name + " : " + str(vector) + " : " + str(quaternion))
-
-        self.write_bone_name(file, name) # ボーン名
+        self.write_bone_name(file, bone) # ボーン名
         self.write_long(file, frame + self.frame_offset) # フレーム番号
         self.write_location(file, vector)
         self.write_quaternion(file, quaternion)
@@ -192,8 +206,11 @@ class VmdExporter(bpy.types.Operator):
     def write_int(self, file, int):
         file.write(struct.pack("i", int))
 
-    def write_bone_name(self, file, name):
-        barray = bytearray(self.change_bone_name_to_mmd(name).encode('shift_jis'))
+    def write_bone_name(self, file, bone):
+        bone_name = bone.name
+        if not bone.vmd_bone_properties.mmd_name:
+            bone_name = bone.vmd_bone_properties.mmd_name
+        barray = bytearray(bone_name.encode('shift_jis'))
         self.write_bytearray(file, 15, barray)
 
     def write_str(self, file, array_size, str):
