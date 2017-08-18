@@ -154,7 +154,6 @@ class PMXArmaturePanel(ArmatureButtonsPanel, Panel):
         if not vmd_armature_properties.export_folder or not vmd_armature_properties.file_name:
             row.enabled = False
 
-
         if len(arm.bones) <= 0:
             layout.enabled = False
 
@@ -205,7 +204,6 @@ class PMXArmaturePanel(ArmatureButtonsPanel, Panel):
         if bone.name == vmd_bone_properties.mmd_parent:
             logger.debug(vmd_bone_properties.mmd_parent)
         row.prop_search(vmd_bone_properties, "mmd_parent", arm, "bones", icon='CONSTRAINT_BONE')
-
 
 class OBJECT_UL_bone_slots(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
