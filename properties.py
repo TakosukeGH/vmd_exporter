@@ -13,6 +13,9 @@ from bpy.app.translations import pgettext
 logger = logging.getLogger(const.ADDON_NAME)
 
 # Properties
+class VMDSceneProperties(PropertyGroup):
+    scale = FloatProperty(name="Scale", min=0.00001, max=100000.0, step=1, default=100.0, precision=3)
+
 class VMDBoneProperties(bpy.types.PropertyGroup):
     export = BoolProperty(name="Export", description="Export bone data", default=False)
     mmd_name = StringProperty(name="MMD bone name", description="MMD bone name")
@@ -98,6 +101,20 @@ class DATA_PT_bone_slots_specials(bpy.types.Menu):
         layout.operator(ClearMMDBoneNameAction.bl_idname, text=pgettext(ClearMMDBoneNameAction.bl_label), icon='SORTALPHA')
 
 # UI
+class VMDToolPanel(Panel):
+    bl_idname = "OBJECT_PT_vmd"
+    bl_label = "VMD Exporter"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'TOOLS'
+    bl_category = 'VMD'
+
+    def draw(self, context):
+        vmd_scene_properties = context.scene.vmd_scene_properties
+
+        layout = self.layout
+
+        row = layout.row()
+
 class ArmatureButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -247,6 +264,7 @@ translations = {
 }
 
 def register():
+    bpy.types.Scene.vmd_scene_properties = PointerProperty(type=VMDSceneProperties)
     bpy.types.Bone.vmd_bone_properties = PointerProperty(type=VMDBoneProperties)
     bpy.types.Armature.vmd_armature_properties = PointerProperty(type=VMDArmatureProperties)
     bpy.app.translations.register(__name__, translations)

@@ -2,7 +2,7 @@ bl_info= {
     "name": "VMD Exporter",
     "author": "Takosuke",
     "version": (0, 0, 1),
-    "blender": (2, 78, 0),
+    "blender": (2, 79, 0),
     "location": "Properties",
     "description": "Export VMD file.",
     "support": "COMMUNITY",
